@@ -17,13 +17,13 @@ param_sets = [
 ];
 param_names = {'Seasonal Influenza', 'COVID-19', 'Measles'};
 
-%Solve SIR model for each parameter set
+% SIR model for each parameter
 figure;
 for scenario = 1:size(param_sets, 1)
     beta = param_sets(scenario, 1);
     gamma = param_sets(scenario, 2);
 
-    %Initialize State Vars
+    
     S = zeros(1, length(t));
     I = zeros(1, length(t));
     R = zeros(1, length(t));
