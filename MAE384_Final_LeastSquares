@@ -1,0 +1,109 @@
+% MAE384 Final Project Part III
+% Rudy Medrano 1221389923
+clc; clear; close all;
+
+% Initial Parameters (same as Part I)
+h = 1;                % Time step (in days)
+T = 30;               % Total simulation time (30 days for Part III)
+N = 1000;             % Total population
+t = 0:h:T;            % Time vector
+
+% Initial Conditions
+S0 = 990;             % Initial susceptible people
+I0 = 10;              % Initial infected people
+R0 = 0;               % Initial recovered people
+
+% Parameters for Part III
+beta = 0.3;           % Transmission rate
+gamma = 0.1;          % Recovery rate
+
+% Generate "True" Data with RK4
+S = zeros(1, length(t));
+I = zeros(1, length(t));
+R = zeros(1, length(t));
+S(1) = S0;
+I(1) = I0;
+R(1) = R0;
+
+% Runge-Kutta 4th Order
+for i = 1:(length(t)-1)
+    % Current state
+    S_i = S(i);
+    I_i = I(i);
+    R_i = R(i);
+
+    % Define Derivatives
+    f1_S = @(S, I) -beta / N * S * I;
+    f1_I = @(S, I) beta / N * S * I - gamma * I;
+    f1_R = @(I) gamma * I;
+
+    % RK4 steps for S
+    k1_S = h * f1_S(S_i, I_i);
+    k1_I = h * f1_I(S_i, I_i);
+    k1_R = h * f1_R(I_i);
+
+    k2_S = h * f1_S(S_i + k1_S / 2, I_i + k1_I / 2);
+    k2_I = h * f1_I(S_i + k1_S / 2, I_i + k1_I / 2);
+    k2_R = h * f1_R(I_i + k1_I / 2);
+
+    k3_S = h * f1_S(S_i + k2_S / 2, I_i + k2_I / 2);
+    k3_I = h * f1_I(S_i + k2_S / 2, I_i + k2_I / 2);
+    k3_R = h * f1_R(I_i + k2_I / 2);
+
+    k4_S = h * f1_S(S_i + k3_S, I_i + k3_I);
+    k4_I = h * f1_I(S_i + k3_S, I_i + k3_I);
+    k4_R = h * f1_R(I_i + k3_I);
+
+    % Update Values
+    S(i+1) = S_i + (k1_S + 2*k2_S + 2*k3_S + k4_S) / 6;
+    I(i+1) = I_i + (k1_I + 2*k2_I + 2*k3_I + k4_I) / 6;
+    R(i+1) = R_i + (k1_R + 2*k2_R + 2*k3_R + k4_R) / 6;
+end
+
+% Linear Least Squares Analysis
+lnI = log(I + eps); % Avoid log(0)
+A = [t', ones(length(t), 1)]; % Linear system matrix
+coeffs = A \ lnI'; % Least squares solution
+
+k = coeffs(1); % Slope
+lnI0 = coeffs(2); % Intercept
+
+% Estimate beta and I(0)
+I0_est = exp(lnI0);
+beta_est = (k + gamma) * N / S0;
+
+% Display Results
+fprintf('Estimated I0: %.2f\n', I0_est);
+fprintf('Estimated beta: %.2f\n', beta_est);
+
+% Using only the first 10 days of data for comparison
+t_short = t(1:11);
+lnI_short = lnI(1:11);
+A_short = [t_short', ones(length(t_short), 1)];
+coeffs_short = A_short \ lnI_short';
+
+k_short = coeffs_short(1);
+lnI0_short = coeffs_short(2);
+I0_est_short = exp(lnI0_short);
+beta_est_short = (k_short + gamma) * N / S0;
+
+fprintf('Using 10 days of data:\n');
+fprintf('Estimated I0: %.2f\n', I0_est_short);
+fprintf('Estimated beta: %.2f\n', beta_est_short);
+
+% Plot the original data and least squares fit
+figure;
+plot(t, lnI, 'ro', 'DisplayName', 'ln(I) True Data');
+hold on;
+plot(t, A * coeffs, 'b-', 'DisplayName', 'Least Squares Fit');
+xlabel('Time (days)');
+ylabel('ln(I)');
+legend('Location', 'best');
+grid on;
+title('Linear Least Squares Fit');
+
+% Discussion
+fprintf(['Discussion: Using 10 days of data provides better estimates because it captures where the linear model is valid. ' ...
+    '\n Extendihng the data to 30 days includes periods where the non-linear model causes deviations from exponential growth. ' ...
+    '\n This makes the estimates less accurate. Using 10 days of data aligns better with the true behavior.'])
+
