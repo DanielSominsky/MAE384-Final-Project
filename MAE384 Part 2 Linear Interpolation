@@ -1,102 +1,22 @@
-%Initial Parameters
-h = 1;                %Time step (in days)
-T = 100;              %Total simulation time (in days)
-N = 1000;             %Total population
-t = 0:h:T;            %Time vector
-
-%Initial Conditions
-S0 = 990;             %Initial susceptible people
-I0 = 10;              %Initial infected people
-R0 = 0;               %Initial recovered people
-
-%Parameter Combinations: [beta, gamma]
-param_sets = [
-    0.3, 0.1;         %Seasonal Influenza
-    1.0, 0.1;         %COVID-19
-    2.0, 0.2          %Measles
-];
-param_names = {'Seasonal Influenza', 'COVID-19', 'Measles'};
-
-% SIR model for each parameter
-figure;
-for scenario = 1:size(param_sets, 1)
-    beta = param_sets(scenario, 1);
-    gamma = param_sets(scenario, 2);
-
-    
-    S = zeros(1, length(t));
-    I = zeros(1, length(t));
-    R = zeros(1, length(t));
-    S(1) = S0;
-    I(1) = I0;
-    R(1) = R0;
-
-    %Runge-Kutta 4th Order
-    for i = 1:(length(t)-1)
-        %Current state
-        S_i = S(i);
-        I_i = I(i);
-        R_i = R(i);
-
-        %Define Derivatives
-        f1_S = @(S, I) -beta / N * S * I;
-        f1_I = @(S, I) beta / N * S * I - gamma * I;
-        f1_R = @(I) gamma * I;
-
-        %RK4 steps for S
-        k1_S = h * f1_S(S_i, I_i);
-        k1_I = h * f1_I(S_i, I_i);
-        k1_R = h * f1_R(I_i);
-
-        k2_S = h * f1_S(S_i + k1_S / 2, I_i + k1_I / 2);
-        k2_I = h * f1_I(S_i + k1_S / 2, I_i + k1_I / 2);
-        k2_R = h * f1_R(I_i + k1_I / 2);
-
-        k3_S = h * f1_S(S_i + k2_S / 2, I_i + k2_I / 2);
-        k3_I = h * f1_I(S_i + k2_S / 2, I_i + k2_I / 2);
-        k3_R = h * f1_R(I_i + k2_I / 2);
-
-        k4_S = h * f1_S(S_i + k3_S, I_i + k3_I);
-        k4_I = h * f1_I(S_i + k3_S, I_i + k3_I);
-        k4_R = h * f1_R(I_i + k3_I);
-
-        %Update Values
-        S(i+1) = S_i + (k1_S + 2*k2_S + 2*k3_S + k4_S) / 6;
-        I(i+1) = I_i + (k1_I + 2*k2_I + 2*k3_I + k4_I) / 6;
-        R(i+1) = R_i + (k1_R + 2*k2_R + 2*k3_R + k4_R) / 6;
-    end
-
-    %Plotting
-    subplot(3, 1, scenario);
-    plot(t, S, 'b', 'LineWidth', 1.5, 'DisplayName', 'Susceptible');
-    hold on;
-    plot(t, I, 'r', 'LineWidth', 1.5, 'DisplayName', 'Infected');
-    plot(t, R, 'g', 'LineWidth', 1.5, 'DisplayName', 'Recovered');
-    title(['SIR Model: ', param_names{scenario}, ' (\beta=', num2str(beta), ', \gamma=', num2str(gamma), ')']);
-    xlabel('Time (days)');
-    ylabel('Population');
-    legend('Location', 'best');
-    grid on;
-end
-
-h_fine = 1;                % Fine time step (1 day)
-h_coarse = 2;              % Coarse time step (2 days)
-T = 100;                  
+%% Part 2 Interpolation
+h_fine = 1;                
+h_coarse = 2;             
+T = 100;                   
 N = 1000;                 
-t_fine = 0:h_fine:T;      
+t_fine = 0:h_fine:T;       
 t_coarse = 0:h_coarse:T;   
-t_odd = 1:2:T;             % Odd days (interpolation points)
+t_odd = 1:2:T;             
 
 % Initial Conditions
-S0 = 990;                  % Initial susceptible people
-I0 = 10;                   % Initial infected people
-R0 = 0;                    % Initial recovered people
+S0 = 990;                  
+I0 = 10;                   
+R0 = 0;                    
 
-% Baseline Case: Seasonal Influenza 
-beta = 0.3;                % Transmission rate
-gamma = 0.1;               % Recovery rate
+% seasonal influenza
+beta = 0.3;                
+gamma = 0.1;               
 
-% Function using RK4
+% Function 
 function [S, I, R] = simulate_SIR(t, h, S0, I0, R0, beta, gamma, N)
     S = zeros(1, length(t));
     I = zeros(1, length(t));
@@ -135,7 +55,7 @@ function [S, I, R] = simulate_SIR(t, h, S0, I0, R0, beta, gamma, N)
     end
 end
 
-% Fine and Coarse Resolution Simulations
+
 [S_fine, I_fine, R_fine] = simulate_SIR(t_fine, h_fine, S0, I0, R0, beta, gamma, N);
 [S_coarse, I_coarse, R_coarse] = simulate_SIR(t_coarse, h_coarse, S0, I0, R0, beta, gamma, N);
 
@@ -144,7 +64,18 @@ S_linear_interp = interp1(t_coarse, S_coarse, t_odd, 'linear');
 I_linear_interp = interp1(t_coarse, I_coarse, t_odd, 'linear');
 R_linear_interp = interp1(t_coarse, R_coarse, t_odd, 'linear');
 
-% Quadratic Interpolation using Lagrange Form
+% Quadratic Interpolation
+function indices = nearest_indices(array, target, num_points)
+    [~, sorted_indices] = sort(abs(array - target));
+    indices = sorted_indices(1:num_points);
+    indices = sort(indices); 
+end
+
+function values = nearest_points(array, target, num_points)
+    indices = nearest_indices(array, target, num_points);
+    values = array(indices);
+end
+
 function V_interp = quadratic_interp(t_points, V_points, t_interp)
     n = length(t_points);
     V_interp = 0;
@@ -159,18 +90,28 @@ function V_interp = quadratic_interp(t_points, V_points, t_interp)
     end
 end
 
-% Quadratic Interpolation for Odd Days
-S_quadratic_interp = arrayfun(@(t) quadratic_interp(t_coarse(1:3), S_coarse(1:3), t), t_odd);
-I_quadratic_interp = arrayfun(@(t) quadratic_interp(t_coarse(1:3), I_coarse(1:3), t), t_odd);
-R_quadratic_interp = arrayfun(@(t) quadratic_interp(t_coarse(1:3), R_coarse(1:3), t), t_odd);
+S_quadratic_interp = arrayfun(@(t) ...
+    quadratic_interp(nearest_points(t_coarse, t, 3), ...
+                     S_coarse(nearest_indices(t_coarse, t, 3)), t), ...
+    t_odd);
 
-% True Values at Odd Days
+I_quadratic_interp = arrayfun(@(t) ...
+    quadratic_interp(nearest_points(t_coarse, t, 3), ...
+                     I_coarse(nearest_indices(t_coarse, t, 3)), t), ...
+    t_odd);
+
+R_quadratic_interp = arrayfun(@(t) ...
+    quadratic_interp(nearest_points(t_coarse, t, 3), ...
+                     R_coarse(nearest_indices(t_coarse, t, 3)), t), ...
+    t_odd);
+
+% True Values 
 odd_indices = t_odd / h_fine + 1;
 S_true = S_fine(odd_indices);
 I_true = I_fine(odd_indices);
 R_true = R_fine(odd_indices);
 
-% Compute L2 Errors
+% L2 Errors
 EL2_S_linear = sqrt(sum((S_linear_interp - S_true).^2) / length(t_odd));
 EL2_I_linear = sqrt(sum((I_linear_interp - I_true).^2) / length(t_odd));
 EL2_R_linear = sqrt(sum((R_linear_interp - R_true).^2) / length(t_odd));
@@ -179,7 +120,6 @@ EL2_S_quad = sqrt(sum((S_quadratic_interp - S_true).^2) / length(t_odd));
 EL2_I_quad = sqrt(sum((I_quadratic_interp - I_true).^2) / length(t_odd));
 EL2_R_quad = sqrt(sum((R_quadratic_interp - R_true).^2) / length(t_odd));
 
-% Error Table
 disp('L2 Errors for Interpolation Methods:');
 errors = table([EL2_S_linear; EL2_S_quad], ...
                [EL2_I_linear; EL2_I_quad], ...
@@ -188,11 +128,10 @@ errors = table([EL2_S_linear; EL2_S_quad], ...
                'RowNames', {'Linear', 'Quadratic'});
 disp(errors);
 
-% Error results 
+% results
 disp('Interpolation Comparison:');
 if sum(errors{1, :}) < sum(errors{2, :})
     disp('Linear interpolation has smaller errors overall.');
 else
     disp('Quadratic interpolation has smaller errors overall.');
 end
-
